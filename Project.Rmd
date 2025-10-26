@@ -1,0 +1,60 @@
+---
+title: "Final Project"
+author: "Youcef Djoudi"
+date: "2025-10-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+readr::write_csv(Sleep_health_and_lifestyle_dataset, "Sleep_health_and_lifestyle_dataset.csv")
+
+data <- read.csv("Sleep_health_and_lifestyle_dataset.csv")
+head(data)
+summary(data)
+
+
+
+```
+
+
+
+
+```{r}
+# Clean names so you don't need backticks
+library(janitor)
+dat <- clean_names(Sleep_health_and_lifestyle_dataset)
+
+# Quick EDA
+hist(dat$sleep_duration, main="Distribution of Sleep Duration", xlab="Hours")
+
+# Boxplots (examples)
+boxplot(sleep_duration ~ gender, data = dat,
+        main="Sleep Duration by Gender", xlab="Gender", ylab="Hours")
+
+boxplot(quality_of_sleep ~ sleep_disorder, data = dat,
+        main="Sleep Quality by Sleep Disorder", xlab="Sleep Disorder", ylab="Quality (1–10)")
+
+# Correlations (numeric only)
+nums <- dat[, c("sleep_duration","quality_of_sleep","physical_activity_level",
+                "stress_level","age","heart_rate","daily_steps")]
+round(cor(nums), 2)
+
+# Regression without caffeine
+m <- lm(sleep_duration ~ stress_level + physical_activity_level + age + gender + bmi_category, data = dat)
+summary(m)
+par(mfrow=c(2,2)); plot(m); par(mfrow=c(1,1))
+
+
+
+
+
+```
+
+
