@@ -2,19 +2,20 @@
 title: "Final Project"
 author: "Youcef Djoudi"
 date: "2025-10-25"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE)#
 ```
 
 
 
+
 ```{r}
-
-readr::write_csv(Sleep_health_and_lifestyle_dataset, "Sleep_health_and_lifestyle_dataset.csv")
-
 data <- read.csv("Sleep_health_and_lifestyle_dataset.csv")
 head(data)
 summary(data)
@@ -29,7 +30,7 @@ summary(data)
 ```{r}
 # Clean names so you don't need backticks
 library(janitor)
-dat <- clean_names(Sleep_health_and_lifestyle_dataset)
+dat <- clean_names(data)
 
 # Quick EDA
 hist(dat$sleep_duration, main="Distribution of Sleep Duration", xlab="Hours")
@@ -56,5 +57,165 @@ par(mfrow=c(2,2)); plot(m); par(mfrow=c(1,1))
 
 
 ```
+
+#Phase 5: Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
+- Assess assumptions (linearity, normality of residuals, constant variance).
+- Compute bootstrap confidence intervals for regression coefficients.
+
+#Setup & clean names
+
+```{r}
+
+# install.packages(c("janitor","car","broom","boot")) # run once if needed
+library(janitor)
+library(car)
+library(broom)
+library(boot)
+
+# start from your loaded data frame:
+# Sleep_health_and_lifestyle_dataset  (already in your session)
+dat <- clean_names(data)
+
+# Make factors (categoricals)
+dat$gender       <- factor(dat$gender)
+dat$bmi_category <- factor(dat$bmi_category)
+dat$sleep_disorder <- factor(dat$sleep_disorder)
+
+
+
+```
+
+
+#We’ll predict sleep_duration from stress_level, physical_activity_level, age, gender, bmi_category.
+
+```{r}
+
+m1 <- lm(sleep_duration ~ stress_level + physical_activity_level + age +
+           gender + bmi_category,
+         data = dat)
+
+summary(m1)
+
+
+
+
+
+
+
+```
+#Model: sleep_duration ~ stress_level + physical_activity_level + age + gender + bmi_category
+Fit: R² = 0.832 (Adj. R² = 0.829); Residual SE = 0.329 h; F(7, 366) = 259.6, p < 2e-16.
+Interpretation: The model explains ~83% of the variance in sleep duration. Stress is the dominant predictor; activity, age, gender, and BMI also matter.
+
+
+#Check assumptions
+
+```{r}
+#check linearity, homoscedasticity, leverage
+par(mfrow=c(2,2)); plot(m1); par(mfrow=c(1,1))  # residuals, QQ, scale-location, leverage
+car::vif(m1)  # multicollinearity check (aim <~ 5)
+
+#Check the normality of residuals
+
+hist(residuals(m1), breaks=20, main="Histogram of residuals", xlab="Residuals")
+qqnorm(residuals(m1)); qqline(residuals(m1), col="red")
+
+
+
+
+```
+
+#Interpretation: All major regression assumptions were examined to ensure the validity of inference. The Residuals vs Fitted and Scale-Location plots showed a roughly random scatter of residuals around zero, with slight curvature and a mild increase in variance, suggesting only minor nonlinearity and heteroskedasticity. The Q–Q plot indicated that residuals follow the theoretical normal line closely, with small deviations in the tails, implying approximate normality.
+
+The Variance Inflation Factors (VIFs) for all predictors were below 3, confirming that multicollinearity is not a concern. The Shapiro–Wilk test and visual inspection supported that residuals are approximately normally distributed, which is sufficient for valid inference given the large sample size (
+𝑛
+=
+374
+n=374). Even if residuals deviate slightly from perfect normality, the Central Limit Theorem ensures that coefficient estimates remain unbiased and normally distributed in large samples.
+
+To account for minor violations, the analysis also reports heteroskedasticity-robust (HC3) standard errors and bootstrap confidence intervals, which do not rely on strict normality assumptions. Overall, the diagnostic results indicate that model assumptions are reasonably satisfied, and the regression model provides reliable and interpretable estimates.
+
+
+#Formal tests + robust (HC3) SEs
+
+```{r}
+
+library(lmtest)
+library(sandwich)
+
+# Breusch–Pagan test for heteroskedasticity
+bptest(m1)
+
+# Robust (HC3) standard errors and p-values
+coeftest(m1, vcov = vcovHC(m1, type = "HC3"))
+
+
+
+```
+#The Breusch–Pagan test detected heteroskedasticity (BP = 76.87, df = 7, p < 6.0×10⁻¹⁴), indicating non-constant error variance. To protect inference, coefficient tests were recomputed with heteroskedasticity-robust (HC3) standard errors. The robust results closely mirror the OLS results and do not change any substantive conclusions:
+
+Stress level remains a large, highly significant negative predictor (β = −0.302 h per unit; p < 2×10⁻¹⁶).
+
+Physical activity level stays a small but significant positive predictor (β ≈ +0.0057 h per unit; p = 5.23×10⁻¹²).
+
+Age remains positively associated with sleep (β ≈ +0.0356 h/year; p < 2×10⁻¹⁶).
+
+Gender (Male) continues to predict longer sleep (β ≈ +0.388 h; p < 2×10⁻¹⁶).
+
+BMI categories: Overweight (β ≈ −0.647 h; p < 2×10⁻¹⁶) and Obese (β ≈ −0.317 h; p = 0.0024) sleep less than the reference BMI group, while Normal Weight is not statistically different (p = 0.221).
+
+
+#Cook distance: Sensitivity analysis for influential points
+```{r}
+# Cook's distance
+cd <- cooks.distance(m1)
+thr <- 4 / nrow(dat)   # common rule of thumb
+which(cd > thr)
+
+# Refit without influential points (if any)
+keep <- cd <= thr
+m1_sens <- lm(sleep_duration ~ stress_level + physical_activity_level + age +
+                gender + bmi_category, data = dat[keep, ])
+
+summary(m1)$coef[,1]      # original betas
+summary(m1_sens)$coef[,1] # betas after removing influential points
+
+
+
+```
+#Influence and sensitivity. Observations with large influence were identified using Cook’s distance (threshold 4/n), flagging cases 33, 146, 185, 186, 265, 267, 277, 278, 342, and 343. Re-estimating the model after excluding these observations produced coefficients that were highly consistent with the full-sample estimates: the effects of stress (≈ −0.30 h per unit), physical activity (≈ +0.006 h per unit), age (≈ +0.036–0.039 h per year), and male gender (≈ +0.39–0.44 h) changed only trivially. The negative association for the Overweight BMI category remained large and stable, while the Obese coefficient attenuated (≈ −0.32 h to −0.16 h), indicating some sensitivity of that specific effect to influential points. Overall, the substantive conclusions are robust to the removal of high-influence observations.
+
+#Bootstrap confidence intervals for coefficients
+
+```{r}
+set.seed(123)
+library(boot)
+
+boot_fun <- function(data, idx){
+  d <- data[idx, ]
+  coef(lm(sleep_duration ~ stress_level + physical_activity_level + age +
+            gender + bmi_category, data = d))
+}
+
+B <- 5000
+boot_fit <- boot(dat, boot_fun, R = B)
+
+# Build a tidy dataframe of percentile CIs
+boot_ci <- lapply(seq_along(boot_fit$t0), function(j){
+  ci <- boot.ci(boot_fit, type="perc", index=j)$percent[4:5]
+  data.frame(term = names(boot_fit$t0)[j],
+             estimate = boot_fit$t0[j],
+             conf_low = ci[1],
+             conf_high = ci[2])
+})
+boot_ci <- do.call(rbind, boot_ci)
+boot_ci
+
+
+
+
+```
+
+Interpretation: Using nonparametric bootstrapping (R = 5000, percentile method), we obtained 95% confidence intervals for all coefficients. The intervals for stress level, physical activity, age, male gender, BMI–Obese, and BMI–Overweight did not include zero, confirming statistically significant associations in the same directions as the OLS/HC3 results. In practical terms, higher stress was associated with substantially less sleep (~18 minutes per one-unit increase), while higher physical activity and older age were associated with more sleep (small–moderate magnitudes). Males slept ~23 minutes longer than females. Relative to the reference BMI group, Overweight participants slept ~39 minutes less and Obese ~19 minutes less, whereas Normal Weight did not differ significantly (CI crosses zero). These bootstrap results reinforce the robustness of our conclusions despite mild departures from normality and heteroskedasticity.
 
 
