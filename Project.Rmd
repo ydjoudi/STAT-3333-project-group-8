@@ -58,6 +58,87 @@ par(mfrow=c(2,2)); plot(m); par(mfrow=c(1,1))
 
 ```
 
+
+
+```{r}
+# PHASE 2
+library(readr)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+
+
+data <- read.csv("Sleep_health_and_lifestyle_dataset.csv")
+dat  <- clean_names(data)
+
+set.seed(123)
+B <- 10000
+
+#### 2.1 Bootstrap 95% CIs: Mean Sleep Duration by Stress Level ####
+
+stress_levels <- sort(unique(dat$stress_level))
+
+boot_means_stress <- lapply(stress_levels, function(s) {
+  x <- dat$sleep_duration[dat$stress_level == s]
+  replicate(B, mean(sample(x, replace = TRUE)))
+})
+
+ci_stress <- data.frame(
+  stress_level = stress_levels,
+  mean_boot    = sapply(boot_means_stress, mean),
+  ci_low       = sapply(boot_means_stress, quantile, 0.025),
+  ci_high      = sapply(boot_means_stress, quantile, 0.975)
+)
+
+ci_stress
+
+# Plot: bootstrap distributions of mean Sleep Duration by Stress Level
+boot_stress_df <- data.frame(
+  stress_level = factor(rep(stress_levels, each = B)),
+  boot_mean    = unlist(boot_means_stress)
+)
+
+ggplot(boot_stress_df, aes(x = boot_mean)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(~ stress_level, scales = "free") +
+  labs(
+    title = "Bootstrap Distributions of Mean Sleep Duration by Stress Level",
+    x = "Bootstrap Mean Sleep Duration (hours)",
+    y = "Frequency"
+  )
+
+#### 2.2 Bootstrap 95% CI: Difference in Mean Sleep Duration (Male - Female) ####
+
+male_sleep   <- dat$sleep_duration[dat$gender == "Male"]
+female_sleep <- dat$sleep_duration[dat$gender == "Female"]
+
+boot_diff <- replicate(B, {
+  m_mean <- mean(sample(male_sleep,   replace = TRUE))
+  f_mean <- mean(sample(female_sleep, replace = TRUE))
+  m_mean - f_mean
+})
+
+obs_diff <- mean(male_sleep) - mean(female_sleep)
+ci_diff  <- quantile(boot_diff, c(0.025, 0.975))
+
+obs_diff
+ci_diff
+
+# Plot: bootstrap distribution of difference in means (Male - Female)
+boot_diff_df <- data.frame(diff = boot_diff)
+
+ggplot(boot_diff_df, aes(x = diff)) +
+  geom_histogram(bins = 30) +
+  geom_vline(xintercept = obs_diff, linetype = "dashed") +
+  labs(
+    title = "Bootstrap Distribution of Mean Sleep Duration Difference (Male - Female)",
+    x = "Bootstrap Difference in Means (hours)",
+    y = "Frequency"
+  )
+```
+
+
+
 #Phase 5: Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
 - Assess assumptions (linearity, normality of residuals, constant variance).
 - Compute bootstrap confidence intervals for regression coefficients.
