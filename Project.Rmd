@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)#
 ```
 
 
-
+# PHASE 1: Exploratory Data Analysis (EDA)
+Summary statistics for all numeric variables (mean, median, standard deviation)
 
 ```{r}
 data <- read.csv("Sleep_health_and_lifestyle_dataset.csv")
@@ -25,6 +26,7 @@ summary(data)
 ```
 
 
+#Histograms for Sleep Duration, Stress Level, and Physical Activity Level.Boxplots comparing Sleep Duration and Quality of Sleep by Gender, BMI Category, and Sleep Disorder
 
 
 ```{r}
@@ -35,7 +37,7 @@ dat <- clean_names(data)
 # Quick EDA
 hist(dat$sleep_duration, main="Distribution of Sleep Duration", xlab="Hours")
 
-# Boxplots (examples)
+# Boxplots 
 boxplot(sleep_duration ~ gender, data = dat,
         main="Sleep Duration by Gender", xlab="Gender", ylab="Hours")
 
@@ -46,13 +48,6 @@ boxplot(quality_of_sleep ~ sleep_disorder, data = dat,
 nums <- dat[, c("sleep_duration","quality_of_sleep","physical_activity_level",
                 "stress_level","age","heart_rate","daily_steps")]
 round(cor(nums), 2)
-
-# Regression without caffeine
-m <- lm(sleep_duration ~ stress_level + physical_activity_level + age + gender + bmi_category, data = dat)
-summary(m)
-par(mfrow=c(2,2)); plot(m); par(mfrow=c(1,1))
-
-
 
 
 
@@ -211,7 +206,7 @@ qqnorm(residuals(m1)); qqline(residuals(m1), col="red")
 
 ```
 
-#Interpretation: All major regression assumptions were examined to ensure the validity of inference. The Residuals vs Fitted and Scale-Location plots showed a roughly random scatter of residuals around zero, with slight curvature and a mild increase in variance, suggesting only minor nonlinearity and heteroskedasticity. The Q–Q plot indicated that residuals follow the theoretical normal line closely, with small deviations in the tails, implying approximate normality.
+#Interpretation: All major regression assumptions were examined to ensure the validity of inference. The Residuals vs Fitted and Scale-Location plots showed a roughly random scatter of residuals around zero, with slight curvature and a mild increase in variance, suggesting only minor nonlinearity and  heteroskedasticity . The Q–Q plot indicated that residuals follow the theoretical normal line closely, with small deviations in the tails.
 
 The Variance Inflation Factors (VIFs) for all predictors were below 3, confirming that multicollinearity is not a concern. The Shapiro–Wilk test and visual inspection supported that residuals are approximately normally distributed, which is sufficient for valid inference given the large sample size (
 𝑛
