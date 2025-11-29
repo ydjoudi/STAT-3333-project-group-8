@@ -139,6 +139,249 @@ ggplot(boot_diff_df, aes(x = diff)) +
 Bootstrapping is appropriate for this phase because each person in the dataset contributes one independent observation, the dataset is large enough for resampling to be reliable, and the bootstrap sampling distributions are smooth and well-behaved. The method does not require the original variables to be normally distributed, so the conditions needed for bootstrapping are met here.
 
 
+# Phase 3
+
+In this phase, we use **permutation tests** to determine whether certain lifestyle factors  
+(stress level and sleep disorders) are associated with differences in **mean sleep duration**.
+
+A permutation test is a nonparametric hypothesis test that measures whether an observed  
+difference between two groups could have occurred by random chance. Instead of relying on  
+theoretical distributions (like the t-distribution), permutation tests generate a **null  
+distribution** by repeatedly shuffling group labels and recalculating the statistic.
+
+#### **Test statistic**
+
+In both tests, the statistic is the **difference in mean sleep duration**:
+
+\[
+T = \bar{X}_{(1)} - \bar{X}_{(2)}
+\]
+
+#### **Null hypothesis**
+
+The null hypothesis states that the group labels (e.g., low vs high stress) do not affect  
+sleep duration. Formally:
+
+\[
+H_0 : \mu_1 = \mu_2
+\]
+
+The alternative hypothesis is that the groups differ:
+
+\[
+H_A : \mu_1 \neq \mu_2
+\]
+
+#### **Permutation procedure**
+
+1. Compute the observed statistic \(T_{\text{obs}}\).  
+2. Randomly shuffle the group labels (e.g., “Low” and “High” stress).  
+3. Recalculate the statistic under this shuffled assignment.  
+4. Repeat steps 2–3 many times (e.g., 5000 permutations).  
+5. Compute the two-sided p-value:
+
+\[
+p = \frac{\#\left(|T_{\text{perm}}| \ge |T_{\text{obs}}|\right)}{B}
+\]
+
+where \(B\) is the number of permutations.
+
+Permutation tests are appropriate here because the observations (people) are independent,  
+and the null hypothesis assumes that sleep duration is **exchangeable** between groups.  
+This method does not require normality or equal variances, making it particularly well  
+suited for real-world health data.
+
+
+
+### 3.1 Permutation Test: Stress Level and Sleep Duration
+ 
+```{r phase3-setup}
+library(dplyr)
+library(ggplot2)
+
+# Create Low/High stress groups
+dat <- dat |>
+  mutate(stress_group = ifelse(stress_level <= 5, "Low", "High"))
+
+# Keep only rows with both sleep_duration and stress_group
+stress_df <- dat |>
+  filter(!is.na(sleep_duration), !is.na(stress_group))
+```
+
+
+```{r phase3-stress-obs}
+# Mean sleep duration in each stress group
+stress_means <- stress_df |>
+  group_by(stress_group) |>
+  summarise(mean_sleep = mean(sleep_duration), .groups = "drop")
+
+stress_means
+
+# Observed difference in means: Low - High
+obs_diff_stress <- with(stress_df,
+                        mean(sleep_duration[stress_group == "Low"]) -
+                        mean(sleep_duration[stress_group == "High"]))
+
+obs_diff_stress
+```
+
+The observed difference in mean sleep duration is computed as:
+
+\[
+T_{\text{obs}} 
+= \bar{X}_{\text{Low}} - \bar{X}_{\text{High}}
+= 7.5846 - 6.5651
+= 1.0196 \text{ hours}.
+\]
+
+This means that low-stress participants sleep, on average, about one hour more per night compared to high-stress participants.
+
+
+
+```{r phase3-stress-permutation}
+set.seed(3333)
+B <- 5000  # number of permutations
+
+# Permutation distribution
+perm_diff_stress <- replicate(B, {
+  shuffled <- sample(stress_df$stress_group)  # shuffle group labels
+  mean(stress_df$sleep_duration[shuffled == "Low"]) -
+    mean(stress_df$sleep_duration[shuffled == "High"])
+})
+
+# Two-sided p-value
+p_stress <- mean(abs(perm_diff_stress) >= abs(obs_diff_stress))
+p_stress
+```
+The permutation test produced a two-sided p-value of
+
+\[
+p_{\text{stress}} < 0.0002,
+\]
+
+because none of the 5000 permuted differences in means were as extreme as the observed  
+difference of 1.02 hours. This indicates extremely strong evidence against the null hypothesis  
+that sleep duration is the same in low- and high-stress groups.
+
+We therefore conclude that stress level is significantly associated with sleep duration, with  
+low-stress individuals sleeping about one hour more per night on average.
+
+
+```{r phase3-stress-plot}
+ggplot(data.frame(diff = perm_diff_stress), aes(x = diff)) +
+  geom_histogram(bins = 30) +
+  geom_vline(xintercept = obs_diff_stress, linetype = "dashed", color="red") +
+  labs(
+    title = "Permutation Test: Sleep Duration (Low vs High Stress)",
+    x = "Difference in Means (hours)",
+    y = "Frequency"
+  )
+```
+The histogram shows the permutation distribution of the difference in mean sleep duration  
+between the Low and High stress groups under the null hypothesis that stress has no effect  
+on sleep. The distribution is centered near zero, which represents the differences we would  
+expect to see purely by chance if stress and sleep duration were unrelated.
+
+The dashed red vertical line marks the observed difference of 1.02 hours. This value lies far  
+outside the range of the permutation distribution, and none of the 5000 permuted statistics  
+were as extreme as the observed one. This visually confirms the very small p-value  
+\((p < 0.0002)\) and provides strong evidence that stress level is associated with sleep duration.
+
+
+### 3.2 Permutation Test: Sleep Disorder and Sleep Duration
+
+
+```{r phase3-disorder-setup}
+# Create None vs Disorder groups
+dat <- dat |>
+  mutate(disorder_group = ifelse(sleep_disorder == "None", "None", "Disorder"))
+
+disorder_df <- dat |>
+  filter(!is.na(sleep_duration), !is.na(disorder_group))
+```
+
+
+```{r phase3-disorder-obs}
+# Mean sleep duration for each disorder status
+disorder_means <- disorder_df |>
+  group_by(disorder_group) |>
+  summarise(mean_sleep = mean(sleep_duration), .groups = "drop")
+
+disorder_means
+
+# Observed difference: None - Disorder
+obs_diff_disorder <- with(disorder_df,
+                          mean(sleep_duration[disorder_group == "None"]) -
+                          mean(sleep_duration[disorder_group == "Disorder"]))
+
+obs_diff_disorder
+
+```
+The sample results show a moderate difference in average sleep duration between individuals
+with and without diagnosed sleep disorders. Participants with **no sleep disorder** slept an
+average of **7.36 hours**, while those with **a disorder** (insomnia or sleep apnea) slept an
+average of **6.81 hours**. The observed difference in means is:
+
+\[
+T_{\text{obs}}
+= \bar{X}_{\text{None}} - \bar{X}_{\text{Disorder}}
+= 7.3584 - 6.8123
+= 0.5462 \text{ hours}.
+\]
+
+This means that, on average, people without a sleep disorder sleep **about 0.55 hours more**
+per night (approximately 33 minutes) than those with a disorder.  
+However, this observed difference may still be due to random variation. To determine whether
+the difference is statistically significant, we perform a permutation test in the next step.
+
+
+```{r phase3-disorder-permutation}
+set.seed(3333)
+B <- 5000  # number of permutations
+
+perm_diff_disorder <- replicate(B, {
+  shuffled <- sample(disorder_df$disorder_group)
+  mean(disorder_df$sleep_duration[shuffled == "None"]) -
+    mean(disorder_df$sleep_duration[shuffled == "Disorder"])
+})
+
+# Two-sided p-value
+p_disorder <- mean(abs(perm_diff_disorder) >= abs(obs_diff_disorder))
+p_disorder
+```
+```{r phase3-disorder-plot}
+ggplot(data.frame(diff = perm_diff_disorder), aes(x = diff)) +
+  geom_histogram(bins = 30) +
+  geom_vline(xintercept = obs_diff_disorder, linetype = "dashed", color="red") +
+  labs(
+    title = "Permutation Test: Sleep Duration (None vs Disorder)",
+    x = "Difference in Means (hours)",
+    y = "Frequency"
+  )
+```
+
+
+### Interpretation
+
+The permutation test produced a p-value of
+
+\[
+p_{\text{disorder}} < \frac{1}{5000} = 0.0002,
+\]
+
+because none of the 5000 permuted differences were as large as the observed difference of  
+0.546 hours. This means the observed difference is far outside what we would expect by  
+random chance if sleep disorders had no effect on sleep duration.
+
+Therefore, we reject the null hypothesis and conclude that sleep duration differs  
+significantly between people with and without sleep disorders. On average, individuals  
+without a disorder sleep about 0.55 hours (33 minutes) more per night than those  
+diagnosed with insomnia or sleep apnea.
+
+
+
+
+
 #Phase 5: Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
 - Assess assumptions (linearity, normality of residuals, constant variance).
 - Compute bootstrap confidence intervals for regression coefficients.
