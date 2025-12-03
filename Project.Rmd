@@ -379,6 +379,104 @@ without a disorder sleep about 0.55 hours (33 minutes) more per night than those
 diagnosed with insomnia or sleep apnea.
 
 
+# Phase 4 — Correlation Analysis
+
+```{r}
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(ggcorrplot) 
+
+ data <- read.csv("sleep_health_and_lifestyle_dataset.csv")
+
+# clean names
+dat <- clean_names(data)
+
+# Convert categorical variables
+dat <- dat %>%
+  mutate(
+    gender = factor(gender),
+    bmi_category = factor(bmi_category),
+    sleep_disorder = factor(sleep_disorder)
+  )
+
+# Select numeric variables for correlation
+num_vars <- c("sleep_duration","quality_of_sleep","stress_level",
+              "physical_activity_level","age","heart_rate","daily_steps")
+
+nums <- dat %>%
+  select(all_of(num_vars)) %>%
+  mutate(across(everything(), as.numeric))
+
+```
+
+```{r}
+cor_mat <- cor(nums, use="pairwise.complete.obs", method="pearson")
+round(cor_mat, 2)
+```
+
+```{r}
+cor_pmat <- function(df){
+  n <- ncol(df); P <- matrix(NA, n, n); diag(P) <- 0
+  for(i in 1:n) for(j in i:n){
+    ct <- suppressWarnings(cor.test(df[[i]], df[[j]], use="pairwise.complete.obs"))
+    P[i,j] <- P[j,i] <- ct$p.value
+  }
+  colnames(P) <- colnames(df); rownames(P) <- colnames(df); P
+}
+p_mat <- cor_pmat(nums)
+ggcorrplot(cor_mat, type="lower", lab=TRUE, p.mat=p_mat, insig="blank") +
+  labs(title="Correlation heatmap (numeric variables)")
+```
+
+```{r}
+key_vars <- c("sleep_duration","quality_of_sleep","stress_level",
+              "physical_activity_level","age","heart_rate")
+GGally::ggpairs(dat, columns = key_vars, aes(color = gender, alpha = 0.7), progress=FALSE)
+```
+
+```{r}
+to_num01 <- function(f) as.numeric(f) - 1
+pb_gender_sleepdur   <- suppressWarnings(cor(nums$sleep_duration, to_num01(dat$gender), use="pairwise.complete.obs"))
+pb_gender_sleepqual  <- suppressWarnings(cor(nums$quality_of_sleep, to_num01(dat$gender), use="pairwise.complete.obs"))
+pb_dis_sleepdur      <- suppressWarnings(cor(nums$sleep_duration, to_num01(dat$sleep_disorder), use="pairwise.complete.obs"))
+pb_dis_sleepqual     <- suppressWarnings(cor(nums$quality_of_sleep, to_num01(dat$sleep_disorder), use="pairwise.complete.obs"))
+
+eta_sq <- function(y, g){ an <- anova(lm(y ~ g)); an$`Sum Sq`[1] / sum(an$`Sum Sq`) }
+eta_sleepdur_bmi  <- eta_sq(dat$sleep_duration, dat$bmi_category)
+eta_sleepqual_bmi <- eta_sq(dat$quality_of_sleep, dat$bmi_category)
+
+data.frame(
+  metric = c("sleep_duration ~ gender (r_pb)","quality_of_sleep ~ gender (r_pb)",
+             "sleep_duration ~ sleep_disorder (r_pb)","quality_of_sleep ~ sleep_disorder (r_pb)",
+             "sleep_duration ~ bmi_category (eta^2)","quality_of_sleep ~ bmi_category (eta^2)"),
+  value  = round(c(pb_gender_sleepdur, pb_gender_sleepqual, pb_dis_sleepdur, pb_dis_sleepqual,
+                   eta_sleepdur_bmi, eta_sleepqual_bmi), 3)
+)
+```
+
+```{r}
+pairs <- t(combn(colnames(nums), 2))
+sig_tbl <- apply(pairs, 1, function(ix){
+  a <- ix[1]; b <- ix[2]
+  out <- suppressWarnings(cor.test(nums[[a]], nums[[b]], use="pairwise.complete.obs"))
+  c(var1=a, var2=b, r=unname(out$estimate), p=out$p.value)
+})
+sig_tbl <- as.data.frame(t(sig_tbl))
+sig_tbl$r <- round(as.numeric(sig_tbl$r), 3)
+sig_tbl$p <- p.adjust(as.numeric(sig_tbl$p), method="holm")
+sig_tbl$p <- round(sig_tbl$p, 4)
+sig_tbl[order(sig_tbl$p), ]
+```
+
+
+
+**Conclusion (Phase 4).**  
+- Stress shows a negative association with sleep (duration & quality); physical activity shows a positive association.  
+- Several pairs are statistically significant after Holm adjustment (see table).  
+- Gender/sleep-disorder show meaningful point-biserial links; BMI category explains a non-trivial fraction of variance (η²).  
+- These patterns motivate the Phase 5 regression with stress + activity + demographics.
 
 
 
@@ -543,101 +641,3 @@ boot_ci
 Interpretation: Using nonparametric bootstrapping (R = 5000, percentile method), we obtained 95% confidence intervals for all coefficients. The intervals for stress level, physical activity, age, male gender, BMI–Obese, and BMI–Overweight did not include zero, confirming statistically significant associations in the same directions as the OLS/HC3 results. In practical terms, higher stress was associated with substantially less sleep (~18 minutes per one-unit increase), while higher physical activity and older age were associated with more sleep (small–moderate magnitudes). Males slept ~23 minutes longer than females. Relative to the reference BMI group, Overweight participants slept ~39 minutes less and Obese ~19 minutes less, whereas Normal Weight did not differ significantly (CI crosses zero). These bootstrap results reinforce the robustness of our conclusions despite mild departures from normality and heteroskedasticity.
 
 
-# Phase 4 — Correlation Analysis
-
-```{r}
-library(janitor)
-library(dplyr)
-library(ggplot2)
-library(GGally)
-library(ggcorrplot) 
-
- data <- read.csv("sleep_health_and_lifestyle_dataset.csv")
-
-# clean names
-dat <- clean_names(data)
-
-# Convert categorical variables
-dat <- dat %>%
-  mutate(
-    gender = factor(gender),
-    bmi_category = factor(bmi_category),
-    sleep_disorder = factor(sleep_disorder)
-  )
-
-# Select numeric variables for correlation
-num_vars <- c("sleep_duration","quality_of_sleep","stress_level",
-              "physical_activity_level","age","heart_rate","daily_steps")
-
-nums <- dat %>%
-  select(all_of(num_vars)) %>%
-  mutate(across(everything(), as.numeric))
-
-```
-
-```{r}
-cor_mat <- cor(nums, use="pairwise.complete.obs", method="pearson")
-round(cor_mat, 2)
-```
-
-```{r}
-cor_pmat <- function(df){
-  n <- ncol(df); P <- matrix(NA, n, n); diag(P) <- 0
-  for(i in 1:n) for(j in i:n){
-    ct <- suppressWarnings(cor.test(df[[i]], df[[j]], use="pairwise.complete.obs"))
-    P[i,j] <- P[j,i] <- ct$p.value
-  }
-  colnames(P) <- colnames(df); rownames(P) <- colnames(df); P
-}
-p_mat <- cor_pmat(nums)
-ggcorrplot(cor_mat, type="lower", lab=TRUE, p.mat=p_mat, insig="blank") +
-  labs(title="Correlation heatmap (numeric variables)")
-```
-
-```{r}
-key_vars <- c("sleep_duration","quality_of_sleep","stress_level",
-              "physical_activity_level","age","heart_rate")
-GGally::ggpairs(dat, columns = key_vars, aes(color = gender, alpha = 0.7), progress=FALSE)
-```
-
-```{r}
-to_num01 <- function(f) as.numeric(f) - 1
-pb_gender_sleepdur   <- suppressWarnings(cor(nums$sleep_duration, to_num01(dat$gender), use="pairwise.complete.obs"))
-pb_gender_sleepqual  <- suppressWarnings(cor(nums$quality_of_sleep, to_num01(dat$gender), use="pairwise.complete.obs"))
-pb_dis_sleepdur      <- suppressWarnings(cor(nums$sleep_duration, to_num01(dat$sleep_disorder), use="pairwise.complete.obs"))
-pb_dis_sleepqual     <- suppressWarnings(cor(nums$quality_of_sleep, to_num01(dat$sleep_disorder), use="pairwise.complete.obs"))
-
-eta_sq <- function(y, g){ an <- anova(lm(y ~ g)); an$`Sum Sq`[1] / sum(an$`Sum Sq`) }
-eta_sleepdur_bmi  <- eta_sq(dat$sleep_duration, dat$bmi_category)
-eta_sleepqual_bmi <- eta_sq(dat$quality_of_sleep, dat$bmi_category)
-
-data.frame(
-  metric = c("sleep_duration ~ gender (r_pb)","quality_of_sleep ~ gender (r_pb)",
-             "sleep_duration ~ sleep_disorder (r_pb)","quality_of_sleep ~ sleep_disorder (r_pb)",
-             "sleep_duration ~ bmi_category (eta^2)","quality_of_sleep ~ bmi_category (eta^2)"),
-  value  = round(c(pb_gender_sleepdur, pb_gender_sleepqual, pb_dis_sleepdur, pb_dis_sleepqual,
-                   eta_sleepdur_bmi, eta_sleepqual_bmi), 3)
-)
-```
-
-```{r}
-pairs <- t(combn(colnames(nums), 2))
-sig_tbl <- apply(pairs, 1, function(ix){
-  a <- ix[1]; b <- ix[2]
-  out <- suppressWarnings(cor.test(nums[[a]], nums[[b]], use="pairwise.complete.obs"))
-  c(var1=a, var2=b, r=unname(out$estimate), p=out$p.value)
-})
-sig_tbl <- as.data.frame(t(sig_tbl))
-sig_tbl$r <- round(as.numeric(sig_tbl$r), 3)
-sig_tbl$p <- p.adjust(as.numeric(sig_tbl$p), method="holm")
-sig_tbl$p <- round(sig_tbl$p, 4)
-sig_tbl[order(sig_tbl$p), ]
-```
-
-
-
-**Conclusion (Phase 4).**  
-- Stress shows a negative association with sleep (duration & quality); physical activity shows a positive association.  
-- Several pairs are statistically significant after Holm adjustment (see table).  
-- Gender/sleep-disorder show meaningful point-biserial links; BMI category explains a non-trivial fraction of variance (η²).  
-- These patterns motivate the Phase 5 regression with stress + activity + demographics.
