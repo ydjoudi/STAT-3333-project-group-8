@@ -88,6 +88,7 @@ ci_stress <- data.frame(
 ci_stress
 ```
 The bootstrap results show a clear pattern: higher stress levels are associated with lower average sleep duration. The lowest-stress group in the dataset (stress level 3) has a mean a little above 8.2 hours, while the highest groups (7 and 8) fall between about 6.0 and 6.5 hours. The confidence intervals for each stress level are narrow, which means the estimates are stable and the differences between levels are not due to randomness. The bootstrap histograms for each stress group show smooth and centered sampling distributions, which indicates the bootstrap procedure worked properly for estimating the mean within each group.
+
 ```{r}
 # Plot: bootstrap distributions of mean Sleep Duration by Stress Level
 boot_stress_df <- data.frame(
@@ -122,6 +123,7 @@ obs_diff
 ci_diff
 ```
 For gender, the bootstrap difference in means (Male – Female) is negative. The observed difference is about –0.19 hours, and the 95% bootstrap confidence interval ranges from roughly –0.35 to –0.03. Because the entire interval is below zero, the bootstrap result supports that females in this dataset sleep slightly longer on average than males. The bootstrap histogram for the difference is also stable and centered around the observed value.
+
 ```{r}
 # Plot: bootstrap distribution of difference in means (Male - Female)
 boot_diff_df <- data.frame(diff = boot_diff)
@@ -382,6 +384,7 @@ diagnosed with insomnia or sleep apnea.
 # Phase 4 — Correlation Analysis
 
 ```{r}
+#install.packages(c("janitor","dplyr","ggplot2","GGally","ggcorrplot")) 
 library(janitor)
 library(dplyr)
 library(ggplot2)
@@ -480,7 +483,9 @@ sig_tbl[order(sig_tbl$p), ]
 
 
 
-#Phase 5: Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
+# Phase 5: 
+
+Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
 - Assess assumptions (linearity, normality of residuals, constant variance).
 - Compute bootstrap confidence intervals for regression coefficients.
 
