@@ -54,7 +54,7 @@ round(cor(nums), 2)
 ```
 
 
-### PHASE 2
+### PHASE 2 (Bootstrap Confidence Intervals)
 ```{r}
 # PHASE 2
 library(readr)
@@ -141,7 +141,7 @@ ggplot(boot_diff_df, aes(x = diff)) +
 Bootstrapping is appropriate for this phase because each person in the dataset contributes one independent observation, the dataset is large enough for resampling to be reliable, and the bootstrap sampling distributions are smooth and well-behaved. The method does not require the original variables to be normally distributed, so the conditions needed for bootstrapping are met here.
 
 
-# Phase 3
+# Phase 3 (Permutation tests)
 
 In this phase, we use **permutation tests** to determine whether certain lifestyle factors  
 (stress level and sleep disorders) are associated with differences in **mean sleep duration**.
@@ -381,7 +381,7 @@ without a disorder sleep about 0.55 hours (33 minutes) more per night than those
 diagnosed with insomnia or sleep apnea.
 
 
-# Phase 4 — Correlation Analysis
+# Phase 4 (Correlation Analysis)
 
 ```{r}
 #install.packages(c("janitor","dplyr","ggplot2","GGally","ggcorrplot")) 
@@ -483,7 +483,7 @@ sig_tbl[order(sig_tbl$p), ]
 
 
 
-# Phase 5: 
+# PHASE 5(Multiple linear regression with diagnostics and bootstrap CIs) 
 
 Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε
 - Assess assumptions (linearity, normality of residuals, constant variance).

@@ -1711,8 +1711,8 @@ round(cor(nums), 2)</code></pre>
 ## age                            -0.42  1.00      -0.23        0.06
 ## heart_rate                      0.67 -0.23       1.00       -0.03
 ## daily_steps                     0.19  0.06      -0.03        1.00</code></pre>
-<div id="phase-2" class="section level3">
-<h3>PHASE 2</h3>
+<div id="phase-2-bootstrap-confidence-intervals" class="section level3">
+<h3>PHASE 2 (Bootstrap Confidence Intervals)</h3>
 <pre class="r"><code># PHASE 2
 library(readr)</code></pre>
 <pre><code>## Warning: package &#39;readr&#39; was built under R version 4.5.1</code></pre>
@@ -1826,8 +1826,8 @@ the original variables to be normally distributed, so the conditions
 needed for bootstrapping are met here.</p>
 </div>
 </div>
-<div id="phase-3" class="section level1">
-<h1>Phase 3</h1>
+<div id="phase-3-permutation-tests" class="section level1">
+<h1>Phase 3 (Permutation tests)</h1>
 <p>In this phase, we use <strong>permutation tests</strong> to determine
 whether certain lifestyle factors<br />
 (stress level and sleep disorders) are associated with differences in
@@ -2068,7 +2068,7 @@ diagnosed with insomnia or sleep apnea.</p>
 </div>
 </div>
 <div id="phase-4-correlation-analysis" class="section level1">
-<h1>Phase 4 — Correlation Analysis</h1>
+<h1>Phase 4 (Correlation Analysis)</h1>
 <pre class="r"><code>#install.packages(c(&quot;janitor&quot;,&quot;dplyr&quot;,&quot;ggplot2&quot;,&quot;GGally&quot;,&quot;ggcorrplot&quot;)) 
 library(janitor)
 library(dplyr)
@@ -2187,8 +2187,9 @@ category explains a non-trivial fraction of variance (η²).<br />
 - These patterns motivate the Phase 5 regression with stress + activity
 + demographics.</p>
 </div>
-<div id="phase-5" class="section level1">
-<h1>Phase 5:</h1>
+<div id="phase-5multiple-linear-regression-with-diagnostics-and-bootstrap-cis" class="section level1">
+<h1>PHASE 5(Multiple linear regression with diagnostics and bootstrap
+CIs)</h1>
 <p>Model:Sleep Duration = β0 + β1(Stress Level) + β2(Physical Activity
 Level) + β3(Age) + β4(Gender) + β5(BMI Category) + ε - Assess
 assumptions (linearity, normality of residuals, constant variance). -
